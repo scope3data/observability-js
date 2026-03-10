@@ -117,7 +117,19 @@ afterEach(() => {
 
 All tracing helpers require `enableOtel: true` in the config passed to `init()`.
 
-#### `startSpan<T>(op, name, attributes, callback): Promise<T>`
+All span helpers accept an optional `tracerName` as their last argument. See [Library usage](#library-usage) for when to use this.
+
+#### `getTracer(name?: string): Tracer`
+
+Return an OpenTelemetry tracer by name. Safe to call without `init()` — when no OTel provider is registered the returned tracer is a no-op. When `name` is omitted, falls back to the tracer name from `init()` config, or `'observability-js'` if `init()` has not been called.
+
+Use this when you need direct access to the tracer (e.g. to build custom instrumentation). For most cases, prefer `startSpan`, `startMCPToolSpan`, or `startManualSpan`.
+
+```ts
+const tracer = getTracer('adcp-client')
+```
+
+#### `startSpan<T>(op, name, attributes, callback, tracerName?): Promise<T>`
 
 Start a generic active span. Automatically sets status to `OK` on success, records the exception and sets status to `ERROR` on failure, and always ends the span.
 
@@ -129,7 +141,7 @@ const result = await startSpan('db.query', 'fetch user', { 'db.table': 'users' }
 })
 ```
 
-#### `startMCPToolSpan<T>(toolName, context, callback): Promise<T>`
+#### `startMCPToolSpan<T>(toolName, context, callback, tracerName?): Promise<T>`
 
 Start an active span for an MCP tool invocation. Automatically attaches `mcp.tool.name`, `mcp.session.id`, `mcp.transport`, `customer.id`, and `customer.company` as span attributes. Same automatic status and lifecycle management as `startSpan`.
 
@@ -139,7 +151,7 @@ const result = await startMCPToolSpan('search_campaigns', { sessionId, customerI
 })
 ```
 
-#### `startManualSpan(op, name, attributes): Span`
+#### `startManualSpan(op, name, attributes, tracerName?): Span`
 
 Start a span whose lifecycle is managed by the caller. Use this for streaming operations (e.g. SSE) where the work outlives a single async callback. The caller must call `span.end()` and set the span status.
 
@@ -207,6 +219,37 @@ captureServiceError(error, 'billing-service', {
   invoiceId,
 })
 ```
+
+## Library usage
+
+All span helpers are safe to call without `init()` having been called first. When no OTel provider is registered, spans are no-ops and callbacks execute normally. This makes it possible for a library (e.g. `adcp-client`) to emit spans that automatically flow into the consuming application's traces when that application has called `init({ enableOtel: true })`.
+
+### Pattern
+
+In your library, pass your library name as the `tracerName` argument to any span helper. Do not call `init()` — that is the responsibility of the consuming application.
+
+```ts
+import { startSpan, setSpanAttributes } from '@scope3/observability-js'
+
+async function executeToolCall(toolName: string, agentId: string, params: unknown) {
+  return startSpan(
+    'adcp.tool.call',
+    `adcp/tool/${toolName}`,
+    {
+      'adcp.tool.name': toolName,
+      'adcp.agent.id': agentId,
+    },
+    async (span) => {
+      const result = await callAgent(toolName, params)
+      setSpanAttributes(span, { 'adcp.task.status': result.status })
+      return result
+    },
+    'adcp-client', // tracerName — namespaces spans under this library
+  )
+}
+```
+
+When the consuming application (e.g. `agentic-api`) calls `init({ enableOtel: true })`, the OTel SDK is registered globally and picks up spans from all tracer names — including `'adcp-client'`. No changes are required in the consuming application beyond what it already does.
 
 ## Automatic behaviors
 
