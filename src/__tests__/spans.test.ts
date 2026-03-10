@@ -1,8 +1,12 @@
 import { trace } from '@opentelemetry/api'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-
-import { getTracer, startManualSpan, startMCPToolSpan, startSpan } from '../spans'
 import { resetConfig, resolveConfig } from '../config'
+import {
+  getTracer,
+  startManualSpan,
+  startMCPToolSpan,
+  startSpan,
+} from '../spans'
 
 afterEach(() => {
   resetConfig()

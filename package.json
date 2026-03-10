@@ -1,5 +1,5 @@
 {
-  "name": "@scope3/observability-js",
+  "name": "@scope3data/observability-js",
   "version": "0.1.0",
   "description": "Unified observability (Sentry, OpenTelemetry, Pyroscope) for Scope3 services",
   "keywords": [
@@ -65,7 +65,7 @@
     "node": ">= 24"
   },
   "publishConfig": {
-    "access": "public",
-    "registry": "https://registry.npmjs.org"
+    "@scope3data:registry": "https://npm.pkg.github.com",
+    "registry": "https://npm.pkg.github.com"
   }
 }
