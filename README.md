@@ -19,6 +19,23 @@ npm install @scope3data/observability-js
 
 Requires Node.js >= 24.
 
+## Bundler configuration
+
+This package maintains a singleton initialization state. If your application uses a bundler (e.g. esbuild) with **multiple entry points**, you must externalize this package so all entry points share the same installed copy at runtime rather than each getting their own inlined copy with separate state.
+
+Without this, `instrument.js` (which calls `init()`) and `server.js` (which uses span/error helpers) end up with separate unconnected copies of the package — `init()` only initializes one of them.
+
+**esbuild (`build.js`):**
+
+```js
+const EXTERNAL_PACKAGES = [
+  '@scope3data/observability-js',
+  // ...
+]
+```
+
+This is not required when running with a dev server (e.g. `tsx`) since Node's module cache naturally deduplicates the package.
+
 ## Quick start
 
 Call `init()` once at process startup, before anything else runs:

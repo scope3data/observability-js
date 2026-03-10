@@ -1,5 +1,6 @@
 import * as Sentry from '@sentry/node'
 
+import { isInitialized } from './config'
 import type { MCPSpanContext } from './types'
 
 function truncateForSentry(value: unknown, maxLength: number): string {
@@ -26,6 +27,7 @@ export function captureToolError(
   toolName: string,
   context: MCPSpanContext & { args?: unknown },
 ): void {
+  if (!isInitialized()) return
   Sentry.captureException(error, {
     tags: {
       'mcp.tool.name': toolName,
@@ -66,6 +68,7 @@ export function captureServiceError(
     [key: string]: unknown
   },
 ): void {
+  if (!isInitialized()) return
   const { customerId, sessionId, ...extra } = context
   Sentry.captureException(error, {
     tags: {

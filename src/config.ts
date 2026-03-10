@@ -91,6 +91,10 @@ export function getConfig(): ResolvedConfig {
   return resolvedConfig
 }
 
+export function isInitialized(): boolean {
+  return resolvedConfig !== null
+}
+
 export function resetConfig(): void {
   resolvedConfig = null
 }

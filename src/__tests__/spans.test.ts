@@ -1,6 +1,6 @@
 import { trace } from '@opentelemetry/api'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { resetConfig, resolveConfig } from '../config'
+import { isInitialized, resetConfig, resolveConfig } from '../config'
 import {
   getTracer,
   startManualSpan,
@@ -11,6 +11,23 @@ import {
 afterEach(() => {
   resetConfig()
   vi.restoreAllMocks()
+})
+
+describe('isInitialized', () => {
+  it('returns false before resolveConfig() is called', () => {
+    expect(isInitialized()).toBe(false)
+  })
+
+  it('returns true after resolveConfig() is called', () => {
+    resolveConfig({ serviceName: 'test-service' })
+    expect(isInitialized()).toBe(true)
+  })
+
+  it('returns false again after resetConfig()', () => {
+    resolveConfig({ serviceName: 'test-service' })
+    resetConfig()
+    expect(isInitialized()).toBe(false)
+  })
 })
 
 describe('getTracer', () => {
