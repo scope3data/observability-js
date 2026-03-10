@@ -1,11 +1,13 @@
 {
   "name": "@scope3/observability-js",
   "version": "0.1.0",
-  "description": "Observability utilities for Node.js applications",
+  "description": "Unified observability (Sentry, OpenTelemetry, Pyroscope) for Scope3 services",
   "keywords": [
     "observability",
-    "telemetry",
-    "monitoring",
+    "sentry",
+    "opentelemetry",
+    "tracing",
+    "pyroscope",
     "scope3"
   ],
   "homepage": "https://github.com/scope3data/observability-js",
@@ -36,12 +38,28 @@
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
+    "test": "vitest run",
+    "test:ci": "vitest run --reporter=verbose",
     "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.52.0",
+    "@opentelemetry/resources": "^1.25.0",
+    "@opentelemetry/sdk-trace-node": "^1.25.0",
+    "@opentelemetry/semantic-conventions": "^1.25.0",
+    "@pyroscope/nodejs": "^0.4.8",
+    "@sentry/node": "10.34.0",
+    "@sentry/opentelemetry": "10.34.0",
+    "@sentry/profiling-node": "10.34.0",
+    "jose": "^6.1.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.0.0",
+    "@types/node": "^22.0.0",
     "tsup": "^8.0.0",
-    "typescript": "^5.5.0"
+    "typescript": "^5.5.0",
+    "vitest": "^4.0.18"
   },
   "engines": {
     "node": ">= 24"
