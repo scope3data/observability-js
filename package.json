@@ -1,0 +1,53 @@
+{
+  "name": "@scope3/observability-js",
+  "version": "0.1.0",
+  "description": "Observability utilities for Node.js applications",
+  "keywords": [
+    "observability",
+    "telemetry",
+    "monitoring",
+    "scope3"
+  ],
+  "homepage": "https://github.com/scope3data/observability-js",
+  "bugs": {
+    "url": "https://github.com/scope3data/observability-js/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/scope3data/observability-js.git"
+  },
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.5.0"
+  },
+  "engines": {
+    "node": ">= 24"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  }
+}

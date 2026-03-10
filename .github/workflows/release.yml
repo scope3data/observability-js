@@ -1,0 +1,196 @@
+name: release
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-main
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Get package.json version
+        id: pkg_version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "tag=v${VERSION}" >> $GITHUB_OUTPUT
+          echo "Package version: ${VERSION}"
+
+      - name: Get latest git tag
+        id: latest_tag
+        run: |
+          git fetch --tags origin
+          LATEST_TAG=$(git tag --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "")
+          echo "tag=${LATEST_TAG}" >> $GITHUB_OUTPUT
+          echo "Latest tag: ${LATEST_TAG:-none}"
+
+      - name: Check if release is needed
+        id: should_release
+        run: |
+          PKG_VERSION="${{ steps.pkg_version.outputs.version }}"
+          LATEST_TAG="${{ steps.latest_tag.outputs.tag }}"
+
+          if [ -z "$LATEST_TAG" ]; then
+            echo "No existing tags found, proceeding with first release"
+            echo "needed=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          LATEST_VERSION="${LATEST_TAG#v}"
+
+          IS_GREATER=$(node -e "
+            const { gt, valid } = require('semver');
+            const pkg = '${PKG_VERSION}';
+            const latest = '${LATEST_VERSION}';
+            if (!valid(pkg) || !valid(latest)) {
+              console.error('Invalid semver: pkg=' + pkg + ' latest=' + latest);
+              process.exit(1);
+            }
+            console.log(gt(pkg, latest) ? 'true' : 'false');
+          ")
+
+          echo "needed=${IS_GREATER}" >> $GITHUB_OUTPUT
+
+          if [ "$IS_GREATER" = "true" ]; then
+            echo "Version ${PKG_VERSION} > ${LATEST_VERSION}, release needed"
+          else
+            echo "Version ${PKG_VERSION} <= ${LATEST_VERSION}, skipping release"
+          fi
+
+      - name: Validate version format
+        if: steps.should_release.outputs.needed == 'true'
+        env:
+          TAG_NAME: ${{ steps.pkg_version.outputs.tag }}
+        run: |
+          if ! printf "%s\n" "$TAG_NAME" | grep -qP '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-(alpha|beta|rc)\.(0|[1-9][0-9]*))?$'; then
+            printf '[ERROR]: Invalid version tag format (%s)\n' "$TAG_NAME"
+            exit 1
+          fi
+          echo "Version tag format is valid: $TAG_NAME"
+
+      - name: Determine if prerelease
+        if: steps.should_release.outputs.needed == 'true'
+        id: prerelease
+        env:
+          TAG_NAME: ${{ steps.pkg_version.outputs.tag }}
+        run: |
+          if printf "%s\n" "$TAG_NAME" | grep -qP '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'; then
+            echo "value=false" >> $GITHUB_OUTPUT
+          else
+            echo "value=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Collect changelog
+        if: steps.should_release.outputs.needed == 'true'
+        id: changelog
+        run: |
+          LATEST_TAG="${{ steps.latest_tag.outputs.tag }}"
+
+          if [ -z "$LATEST_TAG" ]; then
+            git log HEAD --pretty=format:"- %s" --no-merges > /tmp/commits.txt
+          else
+            git log ${LATEST_TAG}..HEAD --pretty=format:"- %s" --no-merges > /tmp/commits.txt
+          fi
+
+          COMMITS_B64=$(base64 -w 0 /tmp/commits.txt)
+          echo "commits_b64=${COMMITS_B64}" >> $GITHUB_OUTPUT
+
+      - name: Configure git
+        if: steps.should_release.outputs.needed == 'true'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+
+      - name: Create and push tag
+        if: steps.should_release.outputs.needed == 'true'
+        run: |
+          TAG="${{ steps.pkg_version.outputs.tag }}"
+          COMMIT_MESSAGES=$(echo "${{ steps.changelog.outputs.commits_b64 }}" | base64 -d)
+          TAG_MESSAGE=$(printf "Release %s\n\nChanges in this release:\n%s" "${TAG}" "${COMMIT_MESSAGES}")
+
+          git tag -a "${TAG}" -m "${TAG_MESSAGE}"
+          git push origin "${TAG}"
+
+      - name: Create GitHub Release
+        if: steps.should_release.outputs.needed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMMITS_B64: ${{ steps.changelog.outputs.commits_b64 }}
+        run: |
+          TAG="${{ steps.pkg_version.outputs.tag }}"
+          COMMIT_MESSAGES=$(echo "$COMMITS_B64" | base64 -d)
+          RELEASE_BODY=$(printf "## Changes in this release:\n\n%s" "${COMMIT_MESSAGES}")
+
+          PRERELEASE_FLAG=""
+          if [ "${{ steps.prerelease.outputs.value }}" = "true" ]; then
+            PRERELEASE_FLAG="--prerelease"
+          fi
+
+          gh release create "${TAG}" \
+            --title "${TAG}" \
+            --notes "${RELEASE_BODY}" \
+            ${PRERELEASE_FLAG}
+
+      - name: Setup Node.js for publishing
+        if: steps.should_release.outputs.needed == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+          registry-url: https://registry.npmjs.org
+
+      - name: Build package
+        if: steps.should_release.outputs.needed == 'true'
+        run: npm run build
+
+      - name: Publish to npm
+        if: steps.should_release.outputs.needed == 'true'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_AUTH_TOKEN }}
+        run: |
+          NPM_TAG="latest"
+          if [ "${{ steps.prerelease.outputs.value }}" = "true" ]; then
+            NPM_TAG="next"
+          fi
+
+          npm publish --ignore-scripts --access public --tag "$NPM_TAG"
+
+      - name: Summary
+        if: steps.should_release.outputs.needed == 'true'
+        run: |
+          echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: ${{ steps.pkg_version.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Prerelease**: ${{ steps.prerelease.outputs.value }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **npm tag**: ${{ steps.prerelease.outputs.value == 'true' && 'next' || 'latest' }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: No release needed
+        if: steps.should_release.outputs.needed != 'true'
+        run: |
+          echo "## No Release" >> $GITHUB_STEP_SUMMARY
+          echo "- **Package version**: ${{ steps.pkg_version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Latest tag**: ${{ steps.latest_tag.outputs.tag || 'none' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Reason**: Version not greater than latest tag, skipping release" >> $GITHUB_STEP_SUMMARY
