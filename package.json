@@ -1,6 +1,6 @@
 {
   "name": "@scope3data/observability-js",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Unified observability (Sentry, OpenTelemetry, Pyroscope) for Scope3 services",
   "keywords": [
     "observability",
