@@ -1,5 +1,5 @@
 {
-  "name": "@scope3/observability-js",
+  "name": "@scope3data/observability-js",
   "version": "1.0.0",
   "description": "Unified observability (Sentry, OpenTelemetry, Pyroscope) for Node.js services",
   "keywords": [
@@ -40,8 +40,7 @@
     "test": "vitest run",
     "test:ci": "vitest run --reporter=verbose",
     "prepare": "husky",
-    "prepublishOnly": "npm run build",
-    "publish:npm": "npm publish --ignore-scripts --tag latest"
+    "prepublishOnly": "npm run build"
   },
   "lint-staged": {
     "*.{js,ts,cjs,mjs,json,jsonc}": [
@@ -74,6 +73,7 @@
     "node": ">= 24"
   },
   "publishConfig": {
-    "access": "public"
+    "@scope3data:registry": "https://npm.pkg.github.com",
+    "registry": "https://npm.pkg.github.com"
   }
 }
