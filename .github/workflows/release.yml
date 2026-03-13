@@ -162,17 +162,17 @@ jobs:
         if: steps.should_release.outputs.needed == 'true'
         run: npm run build
 
-      - name: Publish to npm
-        if: steps.should_release.outputs.needed == 'true'
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          NPM_TAG="latest"
-          if [ "${{ steps.prerelease.outputs.value }}" = "true" ]; then
-            NPM_TAG="next"
-          fi
-
-          npm publish --ignore-scripts --tag "$NPM_TAG"
+      # - name: Publish to npm
+      #   if: steps.should_release.outputs.needed == 'true'
+      #   env:
+      #     NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      #   run: |
+      #     NPM_TAG="latest"
+      #     if [ "${{ steps.prerelease.outputs.value }}" = "true" ]; then
+      #       NPM_TAG="next"
+      #     fi
+      #
+      #     npm publish --ignore-scripts --tag "$NPM_TAG"
 
       - name: Summary
         if: steps.should_release.outputs.needed == 'true'
