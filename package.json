@@ -1,14 +1,13 @@
 {
-  "name": "@scope3data/observability-js",
+  "name": "@scope3/observability-js",
   "version": "1.0.0",
-  "description": "Unified observability (Sentry, OpenTelemetry, Pyroscope) for Scope3 services",
+  "description": "Unified observability (Sentry, OpenTelemetry, Pyroscope) for Node.js services",
   "keywords": [
     "observability",
     "sentry",
     "opentelemetry",
     "tracing",
-    "pyroscope",
-    "scope3"
+    "pyroscope"
   ],
   "homepage": "https://github.com/scope3data/observability-js",
   "bugs": {
@@ -41,7 +40,8 @@
     "test": "vitest run",
     "test:ci": "vitest run --reporter=verbose",
     "prepare": "husky",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "publish:npm": "npm publish --ignore-scripts --tag latest"
   },
   "lint-staged": {
     "*.{js,ts,cjs,mjs,json,jsonc}": [
@@ -74,7 +74,6 @@
     "node": ">= 24"
   },
   "publishConfig": {
-    "@scope3data:registry": "https://npm.pkg.github.com",
-    "registry": "https://npm.pkg.github.com"
+    "access": "public"
   }
 }

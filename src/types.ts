@@ -157,7 +157,7 @@ export interface ResolvedConfig {
 export interface MCPSpanContext {
   /** MCP session identifier. */
   sessionId?: string
-  /** Internal Scope3 customer ID. */
+  /** Customer identifier. */
   customerId?: number
   /** Customer company name. */
   company?: string
