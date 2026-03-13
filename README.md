@@ -1,20 +1,11 @@
-# @scope3data/observability-js
+# @scope3/observability-js
 
-Unified observability for Scope3 Node.js services. A single `init()` call wires up [Sentry](https://sentry.io) (error monitoring, tracing, and profiling), [Pyroscope](https://pyroscope.io) (continuous CPU and heap profiling), and optionally the [OpenTelemetry](https://opentelemetry.io) SDK with OTLP trace export.
+Unified observability for Node.js services. A single `init()` call wires up [Sentry](https://sentry.io) (error monitoring, tracing, and profiling), [Pyroscope](https://pyroscope.io) (continuous CPU and heap profiling), and optionally the [OpenTelemetry](https://opentelemetry.io) SDK with OTLP trace export.
 
 ## Installation
 
-This package is published to [GitHub Packages](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-npm-registry). Ensure your project has a `.npmrc` with the `@scope3data` scope configured:
-
-```
-@scope3data:registry=https://npm.pkg.github.com
-//npm.pkg.github.com/:_authToken=${PACKAGES_ACCESS_TOKEN}
-```
-
-Then install:
-
 ```sh
-npm install @scope3data/observability-js
+npm install @scope3/observability-js
 ```
 
 Requires Node.js >= 24.
@@ -29,7 +20,7 @@ Without this, `instrument.js` (which calls `init()`) and `server.js` (which uses
 
 ```js
 const EXTERNAL_PACKAGES = [
-  '@scope3data/observability-js',
+  '@scope3/observability-js',
   // ...
 ]
 ```
@@ -41,7 +32,7 @@ This is not required when running with a dev server (e.g. `tsx`) since Node's mo
 Call `init()` once at process startup, before anything else runs:
 
 ```ts
-import { init } from '@scope3data/observability-js'
+import { init } from '@scope3/observability-js'
 
 init({
   serviceName: 'my-service',
@@ -51,7 +42,7 @@ init({
 })
 ```
 
-`environment` defaults to `NODE_ENV` and `release` defaults to `COMMIT_SHA`, so in most Scope3 deployments those fields can be omitted.
+`environment` defaults to `NODE_ENV` and `release` defaults to `COMMIT_SHA`, so those fields can typically be omitted.
 
 ## Configuration
 
@@ -255,7 +246,7 @@ All span helpers are safe to call without `init()` having been called first. Whe
 In your library, pass your library name as the `tracerName` argument to any span helper. Do not call `init()` — that is the responsibility of the consuming application.
 
 ```ts
-import { startSpan, setSpanAttributes } from '@scope3data/observability-js'
+import { startSpan, setSpanAttributes } from '@scope3/observability-js'
 
 async function executeToolCall(toolName: string, agentId: string, params: unknown) {
   return startSpan(
