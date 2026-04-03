@@ -95,7 +95,11 @@ function initializeSentry(config: ResolvedConfig): void {
     dsn: config.sentry.dsn,
     environment: config.environment,
     release: config.release,
-    integrations: [Sentry.expressIntegration(), nodeProfilingIntegration()],
+    integrations: [
+      Sentry.expressIntegration(),
+      nodeProfilingIntegration(),
+      ...config.sentry.integrations,
+    ],
     enabled: config.sentry.enabled,
     tracesSampler: (samplingContext) => {
       const { name, attributes } = samplingContext
@@ -108,6 +112,14 @@ function initializeSentry(config: ResolvedConfig): void {
           return 0
         }
       }
+
+      if (config.sentry.tracesSampler) {
+        const result = config.sentry.tracesSampler(samplingContext)
+        if (result !== undefined) {
+          return result
+        }
+      }
+
       return config.sentry.sampleRate
     },
     beforeSend(event, hint) {
