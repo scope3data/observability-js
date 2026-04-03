@@ -47,6 +47,8 @@ export function resolveConfig(config: ObservabilityConfig): ResolvedConfig {
       enabled: sentryEnabled,
       sampleRate: sentrySampleRate,
       profileSampleRate: config.sentry?.profileSampleRate ?? sentrySampleRate,
+      tracesSampler: config.sentry?.tracesSampler,
+      integrations: config.sentry?.integrations ?? [],
     },
 
     pyroscope: {

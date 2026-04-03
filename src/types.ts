@@ -1,4 +1,10 @@
 import type { Span as OtelSpan } from '@opentelemetry/api'
+import type { NodeOptions } from '@sentry/node'
+
+type SamplingContext = Parameters<NonNullable<NodeOptions['tracesSampler']>>[0]
+type SentryIntegration = NonNullable<
+  Extract<NodeOptions['integrations'], unknown[]>
+>[number]
 
 /** Sentry error monitoring and profiling configuration. */
 export interface SentryConfig {
@@ -19,6 +25,20 @@ export interface SentryConfig {
    * Defaults to the resolved `sampleRate`.
    */
   profileSampleRate?: number
+  /**
+   * Custom trace sampler. Receives the Sentry SamplingContext and returns a
+   * sample rate (0–1), or undefined to fall back to the default route-based
+   * sampler.
+   *
+   * Called AFTER the built-in ignoredRoutes check. If ignoredRoutes already
+   * returns 0, this callback is not invoked.
+   */
+  tracesSampler?: (context: SamplingContext) => number | undefined
+  /**
+   * Additional Sentry integrations registered alongside the defaults
+   * (expressIntegration, nodeProfilingIntegration).
+   */
+  integrations?: SentryIntegration[]
 }
 
 /** Pyroscope continuous profiling configuration. */
@@ -126,6 +146,8 @@ export interface ResolvedConfig {
     enabled: boolean
     sampleRate: number
     profileSampleRate: number
+    tracesSampler?: (context: SamplingContext) => number | undefined
+    integrations: SentryIntegration[]
   }
 
   pyroscope: {
