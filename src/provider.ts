@@ -101,27 +101,7 @@ function initializeSentry(config: ResolvedConfig): void {
       ...config.sentry.integrations,
     ],
     enabled: config.sentry.enabled,
-    tracesSampler: (samplingContext) => {
-      const { name, attributes } = samplingContext
-      const httpTarget = attributes?.['http.target'] as string | undefined
-      const rawRoute = httpTarget || name || ''
-      const route = rawRoute.replace(/\/+$/, '')
-
-      for (const ignoredRoute of config.filters.ignoredRoutes) {
-        if (route === ignoredRoute || route.startsWith(`${ignoredRoute}?`)) {
-          return 0
-        }
-      }
-
-      if (config.sentry.tracesSampler) {
-        const result = config.sentry.tracesSampler(samplingContext)
-        if (result !== undefined) {
-          return result
-        }
-      }
-
-      return config.sentry.sampleRate
-    },
+    tracesSampler: buildTracesSampler(config),
     beforeSend(event, hint) {
       const error = hint?.originalException
 
@@ -159,6 +139,41 @@ function initializeSentry(config: ResolvedConfig): void {
     sendDefaultPii: true,
     skipOpenTelemetrySetup: config.enableOtel,
   })
+}
+
+/**
+ * Builds the Sentry `tracesSampler` function from a resolved config.
+ *
+ * Exported for unit testing. Not intended for direct use by consumers.
+ */
+export function buildTracesSampler(
+  config: Pick<ResolvedConfig, 'filters' | 'sentry'>,
+) {
+  return (
+    samplingContext: Parameters<
+      NonNullable<Sentry.NodeOptions['tracesSampler']>
+    >[0],
+  ): number => {
+    const { name, attributes } = samplingContext
+    const httpTarget = attributes?.['http.target'] as string | undefined
+    const rawRoute = httpTarget || name || ''
+    const route = rawRoute.replace(/\/+$/, '')
+
+    for (const ignoredRoute of config.filters.ignoredRoutes) {
+      if (route === ignoredRoute || route.startsWith(`${ignoredRoute}?`)) {
+        return 0
+      }
+    }
+
+    if (config.sentry.tracesSampler) {
+      const result = config.sentry.tracesSampler(samplingContext)
+      if (result !== undefined) {
+        return result
+      }
+    }
+
+    return config.sentry.sampleRate
+  }
 }
 
 function initializeOtelProvider(config: ResolvedConfig): void {

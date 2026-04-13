@@ -1,10 +1,10 @@
 import type { Span as OtelSpan } from '@opentelemetry/api'
-import type { NodeOptions } from '@sentry/node'
+import type * as Sentry from '@sentry/node'
 
-type SamplingContext = Parameters<NonNullable<NodeOptions['tracesSampler']>>[0]
-type SentryIntegration = NonNullable<
-  Extract<NodeOptions['integrations'], unknown[]>
->[number]
+type SamplingContext = Parameters<
+  NonNullable<Sentry.NodeOptions['tracesSampler']>
+>[0]
+type SentryIntegration = ReturnType<typeof Sentry.expressIntegration>
 
 /** Sentry error monitoring and profiling configuration. */
 export interface SentryConfig {

@@ -47,7 +47,12 @@ export function resolveConfig(config: ObservabilityConfig): ResolvedConfig {
       enabled: sentryEnabled,
       sampleRate: sentrySampleRate,
       profileSampleRate: config.sentry?.profileSampleRate ?? sentrySampleRate,
-      tracesSampler: config.sentry?.tracesSampler,
+      tracesSampler: config.sentry?.tracesSampler
+        ? (ctx) => {
+            const rate = config.sentry!.tracesSampler!(ctx)
+            return rate !== undefined ? clampSampleRate(rate) : undefined
+          }
+        : undefined,
       integrations: config.sentry?.integrations ?? [],
     },
 
