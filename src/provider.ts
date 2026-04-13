@@ -1,5 +1,5 @@
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http'
-import { Resource } from '@opentelemetry/resources'
+import { resourceFromAttributes } from '@opentelemetry/resources'
 import {
   BatchSpanProcessor,
   NodeTracerProvider,
@@ -8,8 +8,8 @@ import {
 import {
   ATTR_SERVICE_NAME,
   ATTR_SERVICE_VERSION,
-  SEMRESATTRS_DEPLOYMENT_ENVIRONMENT,
 } from '@opentelemetry/semantic-conventions'
+import { ATTR_DEPLOYMENT_ENVIRONMENT_NAME } from '@opentelemetry/semantic-conventions/incubating'
 import Pyroscope from '@pyroscope/nodejs'
 import * as Sentry from '@sentry/node'
 import {
@@ -162,21 +162,16 @@ function initializeSentry(config: ResolvedConfig): void {
 }
 
 function initializeOtelProvider(config: ResolvedConfig): void {
-  const resource = new Resource({
+  const resource = resourceFromAttributes({
     [ATTR_SERVICE_NAME]: config.serviceName,
-    [SEMRESATTRS_DEPLOYMENT_ENVIRONMENT]: config.environment,
+    [ATTR_DEPLOYMENT_ENVIRONMENT_NAME]: config.environment,
     [ATTR_SERVICE_VERSION]: config.release,
   })
 
   const sentryClient = Sentry.getClient()
-  const provider = new NodeTracerProvider({
-    resource,
-    sampler: sentryClient ? new SentrySampler(sentryClient) : undefined,
-  })
-
-  provider.addSpanProcessor(
+  const spanProcessors: SpanProcessor[] = [
     new SentrySpanProcessor() as unknown as SpanProcessor,
-  )
+  ]
 
   if (config.otlp.enabled && config.otlp.endpoint) {
     const otlpExporter = new OTLPTraceExporter({
@@ -184,7 +179,7 @@ function initializeOtelProvider(config: ResolvedConfig): void {
       headers: config.otlp.headers,
     })
 
-    provider.addSpanProcessor(
+    spanProcessors.push(
       new BatchSpanProcessor(otlpExporter, {
         maxExportBatchSize: 512,
         scheduledDelayMillis: 5000,
@@ -192,6 +187,12 @@ function initializeOtelProvider(config: ResolvedConfig): void {
       }),
     )
   }
+
+  const provider = new NodeTracerProvider({
+    resource,
+    sampler: sentryClient ? new SentrySampler(sentryClient) : undefined,
+    spanProcessors,
+  })
 
   provider.register({
     propagator: new SentryPropagator(),
