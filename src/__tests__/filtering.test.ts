@@ -1,4 +1,6 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { resetConfig, resolveConfig } from '../config'
+import { buildTracesSampler } from '../provider'
 
 const DEFAULT_FILTER_CONFIG = {
   ignoredRoutes: ['/health', '/health/liveness', '/metrics'],
@@ -11,6 +13,9 @@ const DEFAULT_FILTER_CONFIG = {
 }
 
 describe('Observability Filtering', () => {
+  afterEach(() => {
+    resetConfig()
+  })
   describe('tracesSampler logic', () => {
     const shouldDropTrace = (route: string): boolean => {
       const normalized = route.replace(/\/+$/, '')
@@ -232,73 +237,66 @@ describe('Observability Filtering', () => {
   })
 
   describe('custom tracesSampler hook', () => {
-    type SamplerContext = {
+    // Minimal stub satisfying TracesSamplerSamplingContext's required fields.
+    const ctx = (partial: {
       name?: string
       attributes?: Record<string, unknown>
-    }
+    }) =>
+      ({
+        name: '',
+        inheritOrSampleWith: (r: number) => r,
+        ...partial,
+      }) as Parameters<ReturnType<typeof buildTracesSampler>>[0]
 
-    // Replicates the composition logic from provider.ts initializeSentry
     const makeSampler = (
       ignoredRoutes: string[],
-      customSampler?: (ctx: SamplerContext) => number | undefined,
+      customSampler?: (c: ReturnType<typeof ctx>) => number | undefined,
       defaultRate = 1.0,
     ) => {
-      return (ctx: SamplerContext): number => {
-        const httpTarget = ctx.attributes?.['http.target'] as string | undefined
-        const rawRoute = httpTarget || ctx.name || ''
-        const route = rawRoute.replace(/\/+$/, '')
-
-        for (const ignored of ignoredRoutes) {
-          if (route === ignored || route.startsWith(`${ignored}?`)) {
-            return 0
-          }
-        }
-
-        if (customSampler) {
-          const result = customSampler(ctx)
-          if (result !== undefined) return result
-        }
-
-        return defaultRate
-      }
+      const config = resolveConfig({
+        serviceName: 'test',
+        filters: { ignoredRoutes },
+        sentry: { sampleRate: defaultRate, tracesSampler: customSampler },
+      })
+      return buildTracesSampler(config)
     }
 
     it('falls back to sampleRate when no custom sampler provided', () => {
       const sampler = makeSampler(['/health'], undefined, 0.5)
-      expect(sampler({ name: '/api/data' })).toBe(0.5)
+      expect(sampler(ctx({ name: '/api/data' }))).toBe(0.5)
     })
 
     it('custom sampler return value overrides sampleRate', () => {
-      const custom = (ctx: SamplerContext) => {
-        if (ctx.attributes?.['customer.id'] === '84') return 0
+      const custom = (c: ReturnType<typeof ctx>) => {
+        if (c.attributes?.['customer.id'] === '84') return 0
         return undefined
       }
       const sampler = makeSampler([], custom, 0.5)
-      expect(sampler({ attributes: { 'customer.id': '84' } })).toBe(0)
-      expect(sampler({ attributes: { 'customer.id': '1' } })).toBe(0.5)
+      expect(sampler(ctx({ attributes: { 'customer.id': '84' } }))).toBe(0)
+      expect(sampler(ctx({ attributes: { 'customer.id': '1' } }))).toBe(0.5)
     })
 
     it('custom sampler returning undefined falls back to sampleRate', () => {
-      const custom = (_ctx: SamplerContext) => undefined
+      const custom = () => undefined
       const sampler = makeSampler([], custom, 0.75)
-      expect(sampler({ name: '/api/data' })).toBe(0.75)
+      expect(sampler(ctx({ name: '/api/data' }))).toBe(0.75)
     })
 
     it('ignoredRoutes check short-circuits before custom sampler is called', () => {
       const custom = vi.fn(() => 1.0 as number | undefined)
       const sampler = makeSampler(['/health'], custom, 0.5)
-      expect(sampler({ name: '/health' })).toBe(0)
+      expect(sampler(ctx({ name: '/health' }))).toBe(0)
       expect(custom).not.toHaveBeenCalled()
     })
 
     it('custom sampler can return fractional sample rates', () => {
-      const custom = (ctx: SamplerContext) => {
-        if (ctx.attributes?.['tier'] === 'premium') return 1.0
+      const custom = (c: ReturnType<typeof ctx>) => {
+        if (c.attributes?.['tier'] === 'premium') return 1.0
         return 0.1
       }
       const sampler = makeSampler([], custom, 0.5)
-      expect(sampler({ attributes: { tier: 'premium' } })).toBe(1.0)
-      expect(sampler({ attributes: { tier: 'free' } })).toBe(0.1)
+      expect(sampler(ctx({ attributes: { tier: 'premium' } }))).toBe(1.0)
+      expect(sampler(ctx({ attributes: { tier: 'free' } }))).toBe(0.1)
     })
   })
 })

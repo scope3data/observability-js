@@ -1,5 +1,5 @@
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http'
-import { Resource } from '@opentelemetry/resources'
+import { resourceFromAttributes } from '@opentelemetry/resources'
 import {
   BatchSpanProcessor,
   NodeTracerProvider,
@@ -8,8 +8,8 @@ import {
 import {
   ATTR_SERVICE_NAME,
   ATTR_SERVICE_VERSION,
-  SEMRESATTRS_DEPLOYMENT_ENVIRONMENT,
 } from '@opentelemetry/semantic-conventions'
+import { ATTR_DEPLOYMENT_ENVIRONMENT_NAME } from '@opentelemetry/semantic-conventions/incubating'
 import Pyroscope from '@pyroscope/nodejs'
 import * as Sentry from '@sentry/node'
 import {
@@ -101,27 +101,7 @@ function initializeSentry(config: ResolvedConfig): void {
       ...config.sentry.integrations,
     ],
     enabled: config.sentry.enabled,
-    tracesSampler: (samplingContext) => {
-      const { name, attributes } = samplingContext
-      const httpTarget = attributes?.['http.target'] as string | undefined
-      const rawRoute = httpTarget || name || ''
-      const route = rawRoute.replace(/\/+$/, '')
-
-      for (const ignoredRoute of config.filters.ignoredRoutes) {
-        if (route === ignoredRoute || route.startsWith(`${ignoredRoute}?`)) {
-          return 0
-        }
-      }
-
-      if (config.sentry.tracesSampler) {
-        const result = config.sentry.tracesSampler(samplingContext)
-        if (result !== undefined) {
-          return result
-        }
-      }
-
-      return config.sentry.sampleRate
-    },
+    tracesSampler: buildTracesSampler(config),
     beforeSend(event, hint) {
       const error = hint?.originalException
 
@@ -161,22 +141,52 @@ function initializeSentry(config: ResolvedConfig): void {
   })
 }
 
+/**
+ * Builds the Sentry `tracesSampler` function from a resolved config.
+ *
+ * Exported for unit testing. Not intended for direct use by consumers.
+ */
+export function buildTracesSampler(
+  config: Pick<ResolvedConfig, 'filters' | 'sentry'>,
+) {
+  return (
+    samplingContext: Parameters<
+      NonNullable<Sentry.NodeOptions['tracesSampler']>
+    >[0],
+  ): number => {
+    const { name, attributes } = samplingContext
+    const httpTarget = attributes?.['http.target'] as string | undefined
+    const rawRoute = httpTarget || name || ''
+    const route = rawRoute.replace(/\/+$/, '')
+
+    for (const ignoredRoute of config.filters.ignoredRoutes) {
+      if (route === ignoredRoute || route.startsWith(`${ignoredRoute}?`)) {
+        return 0
+      }
+    }
+
+    if (config.sentry.tracesSampler) {
+      const result = config.sentry.tracesSampler(samplingContext)
+      if (result !== undefined) {
+        return result
+      }
+    }
+
+    return config.sentry.sampleRate
+  }
+}
+
 function initializeOtelProvider(config: ResolvedConfig): void {
-  const resource = new Resource({
+  const resource = resourceFromAttributes({
     [ATTR_SERVICE_NAME]: config.serviceName,
-    [SEMRESATTRS_DEPLOYMENT_ENVIRONMENT]: config.environment,
+    [ATTR_DEPLOYMENT_ENVIRONMENT_NAME]: config.environment,
     [ATTR_SERVICE_VERSION]: config.release,
   })
 
   const sentryClient = Sentry.getClient()
-  const provider = new NodeTracerProvider({
-    resource,
-    sampler: sentryClient ? new SentrySampler(sentryClient) : undefined,
-  })
-
-  provider.addSpanProcessor(
+  const spanProcessors: SpanProcessor[] = [
     new SentrySpanProcessor() as unknown as SpanProcessor,
-  )
+  ]
 
   if (config.otlp.enabled && config.otlp.endpoint) {
     const otlpExporter = new OTLPTraceExporter({
@@ -184,7 +194,7 @@ function initializeOtelProvider(config: ResolvedConfig): void {
       headers: config.otlp.headers,
     })
 
-    provider.addSpanProcessor(
+    spanProcessors.push(
       new BatchSpanProcessor(otlpExporter, {
         maxExportBatchSize: 512,
         scheduledDelayMillis: 5000,
@@ -192,6 +202,12 @@ function initializeOtelProvider(config: ResolvedConfig): void {
       }),
     )
   }
+
+  const provider = new NodeTracerProvider({
+    resource,
+    sampler: sentryClient ? new SentrySampler(sentryClient) : undefined,
+    spanProcessors,
+  })
 
   provider.register({
     propagator: new SentryPropagator(),
