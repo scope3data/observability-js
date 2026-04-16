@@ -84,6 +84,7 @@ export function resolveConfig(config: ObservabilityConfig): ResolvedConfig {
     },
 
     shouldDropError: config.shouldDropError,
+    classifyError: config.classifyError,
   }
 
   return resolvedConfig

@@ -132,6 +132,13 @@ export interface ObservabilityConfig {
    * Return `true` to drop the error, `false` to allow it through.
    */
   shouldDropError?: (error: unknown) => boolean
+
+  /**
+   * Optional callback to classify errors before they are sent to Sentry.
+   * Return `'drop'` to suppress the error, `'warning'` to downgrade its
+   * severity level, or `undefined` to leave it unchanged.
+   */
+  classifyError?: (error: unknown) => 'drop' | 'warning' | undefined
 }
 
 export interface ResolvedConfig {
@@ -173,6 +180,7 @@ export interface ResolvedConfig {
   }
 
   shouldDropError?: (error: unknown) => boolean
+  classifyError?: (error: unknown) => 'drop' | 'warning' | undefined
 }
 
 /** Context fields attached to MCP tool spans and error reports. */

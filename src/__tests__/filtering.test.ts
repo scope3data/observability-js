@@ -108,6 +108,54 @@ describe('Observability Filtering', () => {
     })
   })
 
+  describe('classifyError callback pattern', () => {
+    class TransportError extends Error {
+      constructor(
+        message: string,
+        public readonly transient: boolean,
+      ) {
+        super(message)
+        this.name = 'TransportError'
+      }
+    }
+
+    const classifyError = (error: unknown): 'drop' | 'warning' | undefined => {
+      if (error instanceof TransportError) {
+        return error.transient ? 'warning' : undefined
+      }
+      if (
+        error instanceof Error &&
+        error.message.includes('client disconnected')
+      ) {
+        return 'drop'
+      }
+      return undefined
+    }
+
+    it('returns drop to suppress errors', () => {
+      expect(classifyError(new Error('client disconnected unexpectedly'))).toBe(
+        'drop',
+      )
+    })
+
+    it('returns warning to downgrade severity', () => {
+      expect(classifyError(new TransportError('timeout', true))).toBe('warning')
+    })
+
+    it('returns undefined to leave errors unchanged', () => {
+      expect(
+        classifyError(new TransportError('connection refused', false)),
+      ).toBeUndefined()
+      expect(classifyError(new Error('unexpected failure'))).toBeUndefined()
+    })
+
+    it('handles non-Error values gracefully', () => {
+      expect(classifyError(undefined)).toBeUndefined()
+      expect(classifyError(null)).toBeUndefined()
+      expect(classifyError('string error')).toBeUndefined()
+    })
+  })
+
   describe('beforeBreadcrumb logic', () => {
     type MockBreadcrumb = {
       category?: string
