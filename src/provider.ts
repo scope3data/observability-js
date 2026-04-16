@@ -109,6 +109,15 @@ function initializeSentry(config: ResolvedConfig): void {
         return null
       }
 
+      const classification = config.classifyError?.(error)
+      if (classification === 'drop') {
+        return null
+      }
+      if (classification === 'warning') {
+        event.level = 'warning'
+        return event
+      }
+
       if (error instanceof joseErrors.JWTExpired) {
         return null
       }
