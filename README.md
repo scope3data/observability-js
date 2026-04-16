@@ -71,6 +71,7 @@ All options are passed to `init()` as an `ObservabilityConfig` object.
 | `otlp` | `OtlpConfig` | — | OTLP trace export configuration. See below. |
 | `filters` | `FilterConfig` | — | Filtering rules for traces, errors, and breadcrumbs. See below. |
 | `shouldDropError` | `(error: unknown) => boolean` | — | Predicate to suppress specific errors from Sentry. Return `true` to drop. |
+| `classifyError` | `(error: unknown) => 'drop' \| 'warning' \| undefined` | — | Classify errors before sending to Sentry. `'drop'` suppresses the error, `'warning'` downgrades its severity level, `undefined` leaves it unchanged. |
 
 ### `SentryConfig`
 
@@ -126,6 +127,10 @@ init({
   },
   shouldDropError: (error) =>
     error instanceof MyClientError && error.code === 'NOT_FOUND',
+  classifyError: (error) => {
+    if (error instanceof TransportError && error.transient) return 'warning'
+    return undefined
+  },
 })
 ```
 
@@ -282,6 +287,7 @@ When the consuming application (e.g. `agentic-api`) calls `init({ enableOtel: tr
 Several things happen without any additional configuration:
 
 - **`JWTExpired` errors are silently dropped** from Sentry — expired tokens are expected and not actionable.
+- **Error classification runs in order**: `shouldDropError` is checked first, then `classifyError`, then the built-in `JWTExpired` filter. The first match wins.
 - **Pyroscope initialization failures are caught** — if Pyroscope fails to start, the error is reported to Sentry and the process continues normally.
 - **Pyroscope and PostHog breadcrumbs are filtered** from Sentry by default via `filters.ignoredBreadcrumbPatterns`.
 - **Test environments are inert** — when `NODE_ENV=test`, `init()` resolves the config but skips all instrumentation. No Sentry, no Pyroscope, no OTel side effects.
