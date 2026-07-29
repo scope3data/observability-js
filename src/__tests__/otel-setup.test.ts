@@ -154,13 +154,11 @@ describe('trace provider registration on the Sentry client', () => {
     expect(forceFlush).toHaveBeenCalled()
   })
 
-  it('settles the client flush when span export fails', async () => {
+  it('settles the client close when span export fails', async () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
     // A port that refuses connections stands in for a collector that is draining
-    // at the same time as the pod. `BasicTracerProvider.forceFlush()` rejects
-    // with an array of errors when a processor fails, and `NodeClient.flush()`
-    // awaits it without a catch, so an unhandled rejection here would abort the
-    // client's own event flush and discard buffered errors.
+    // at the same time as the pod. `NodeClient.close()` flushes first and then
+    // shuts down the provider, so both stages must respect the shutdown budget.
     initWithOtel('http://127.0.0.1:1')
 
     try {
@@ -168,9 +166,9 @@ describe('trace provider registration on the Sentry client', () => {
         ?.tracer.startSpan('export-failure-probe')
         .end()
 
-      await expect(Sentry.flush(2000)).resolves.not.toThrow()
+      await expect(Sentry.close(2000)).resolves.not.toThrow()
     } finally {
       consoleError.mockRestore()
     }
-  }, 20000)
+  }, 2000)
 })

@@ -208,6 +208,7 @@ function initializeOtelProvider(config: ResolvedConfig): void {
     const otlpExporter = new OTLPTraceExporter({
       url: `${config.otlp.endpoint}/v1/traces`,
       headers: config.otlp.headers,
+      timeoutMillis: SHUTDOWN_FLUSH_TIMEOUT_MS,
     })
 
     spanProcessors.push(
