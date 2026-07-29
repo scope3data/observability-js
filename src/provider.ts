@@ -26,6 +26,13 @@ import type { ObservabilityConfig, ResolvedConfig } from './types'
 let initialized = false
 
 /**
+ * Per-span-processor budget for the flush that `Sentry.flush()` and
+ * `Sentry.close()` trigger, kept well inside a Kubernetes termination grace
+ * period so shutdown cannot stall on an unreachable OTLP collector.
+ */
+const SHUTDOWN_FLUSH_TIMEOUT_MS = 500
+
+/**
  * Initialize Sentry, Pyroscope, and (optionally) the OpenTelemetry SDK.
  *
  * Must be called once at process startup, before any other observability
@@ -192,7 +199,7 @@ function initializeOtelProvider(config: ResolvedConfig): void {
     [ATTR_SERVICE_VERSION]: config.release,
   })
 
-  const sentryClient = Sentry.getClient()
+  const sentryClient = Sentry.getClient<Sentry.NodeClient>()
   const spanProcessors: SpanProcessor[] = [
     new SentrySpanProcessor() as unknown as SpanProcessor,
   ]
@@ -216,11 +223,91 @@ function initializeOtelProvider(config: ResolvedConfig): void {
     resource,
     sampler: sentryClient ? new SentrySampler(sentryClient) : undefined,
     spanProcessors,
+    // Bounds each span processor during a shutdown flush. The OTel default is
+    // 30s, which matches `exportTimeoutMillis` below and so can outlast a
+    // typical Kubernetes termination grace period.
+    forceFlushTimeoutMillis: SHUTDOWN_FLUSH_TIMEOUT_MS,
   })
 
   provider.register({
     propagator: new SentryPropagator(),
+    // Writes Sentry's scopes onto the OpenTelemetry context, which is what backs
+    // `withIsolationScope` and `getCurrentScope` once Sentry's async context
+    // strategy is in place. A plain context manager keeps the OTel context but
+    // carries no scopes, so those calls all resolve to the process-global scope.
+    contextManager: new Sentry.SentryContextManager(),
   })
+
+  attachTraceProviderForShutdownFlush(sentryClient, provider)
+  warnIfScopeIsolationInactive()
+}
+
+/**
+ * Gives the Sentry client the handle its `flush()` and `close()` use to drain
+ * the span processors, so a graceful shutdown exports what the batch is still
+ * holding instead of discarding it.
+ *
+ * Skipped when the client already has a provider, which means something else
+ * completed an OpenTelemetry setup and owns the registered globals; replacing
+ * its provider would point shutdown at one that never receives spans.
+ *
+ * `NodeClient.flush()` awaits `forceFlush()` without a catch, and
+ * `BasicTracerProvider.forceFlush()` rejects with an array of errors if any
+ * processor fails or times out. Left to propagate, a failing span export would
+ * abort the client's own event flush and discard buffered errors, so span
+ * export failures are contained here.
+ */
+function attachTraceProviderForShutdownFlush(
+  client: Sentry.NodeClient | undefined,
+  provider: NodeTracerProvider,
+): void {
+  if (!client || client.traceProvider) {
+    return
+  }
+
+  const forceFlush = provider.forceFlush.bind(provider)
+  provider.forceFlush = () =>
+    forceFlush().catch((error) => {
+      console.error('OpenTelemetry span flush failed during shutdown', error)
+    })
+
+  client.traceProvider = provider
+}
+
+/**
+ * Reports when Sentry scope isolation is not actually active after provider
+ * registration.
+ *
+ * `provider.register()` delegates to `context.setGlobalContextManager()`, which
+ * refuses to replace an already-registered manager and reports the refusal only
+ * through OpenTelemetry's diag channel. Neither SDK validator catches that:
+ * `Sentry.validateOpenTelemetrySetup()` early-returns in non-debug builds and
+ * routes its output through Sentry's debug logger, while
+ * `openTelemetrySetupCheck()` records elements when they are *constructed*
+ * rather than when they are successfully registered, and tracks them per module
+ * instance, so it misreads installs that cross a duplicated
+ * @sentry/opentelemetry copy.
+ *
+ * An active context manager hands `withIsolationScope` a freshly forked scope; a
+ * missing one hands back the ambient process-global scope. Comparing identity is
+ * an exact check and leaves no tags behind in either case.
+ */
+function warnIfScopeIsolationInactive(): void {
+  const ambient = Sentry.getIsolationScope()
+  const forksIsolationScope = Sentry.withIsolationScope(
+    (forked) => forked !== ambient,
+  )
+
+  if (!forksIsolationScope) {
+    console.error(
+      'Sentry scope isolation is NOT active. Tags, user identity and ' +
+        'transaction names will leak between concurrent requests and ' +
+        'background jobs. Either an OpenTelemetry context manager was already ' +
+        'registered before init() ran, or a duplicated @sentry/core resolves ' +
+        'to a different version than @sentry/node and never received the ' +
+        'OpenTelemetry async context strategy.',
+    )
+  }
 }
 
 function initializePyroscope(config: ResolvedConfig): void {

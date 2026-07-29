@@ -1,6 +1,6 @@
 {
   "name": "@scope3/observability-js",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Unified observability (Sentry, OpenTelemetry, Pyroscope) for Node.js services",
   "keywords": [
     "observability",
@@ -61,6 +61,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.0.0",
+    "@opentelemetry/context-async-hooks": "^2.6.1",
     "@types/node": "^22.0.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.3.3",
