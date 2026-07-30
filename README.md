@@ -8,7 +8,7 @@ Unified observability for Node.js services. A single `init()` call wires up [Sen
 npm install @scope3/observability-js
 ```
 
-Requires Node.js >= 24.
+Requires Node.js >= 20.20.2.
 
 ## Bundler configuration
 

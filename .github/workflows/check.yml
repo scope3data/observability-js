@@ -11,8 +11,15 @@ concurrency:
 
 jobs:
   check:
-    name: Build, Typecheck & Lint
+    name: Build, Typecheck & Lint (Node ${{ matrix.node }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Lowest version `engines.node` admits, and the version .nvmrc develops
+        # against. Testing the floor is what keeps that claim honest, since the
+        # native profiler resolves a prebuilt binary per Node ABI.
+        node: ['20.20.2', '24.x']
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -20,7 +27,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 24.x
+          node-version: ${{ matrix.node }}
           cache: npm
 
       - name: Install dependencies
