@@ -96,6 +96,7 @@ All options are passed to `init()` as an `ObservabilityConfig` object.
 | `ignoredRoutes` | `string[]` | `[]` | Routes never sampled by Sentry (e.g. `['/health', '/metrics']`). Trailing slashes and query strings are handled automatically. |
 | `ignoredBreadcrumbCategories` | `string[]` | `['http', 'fetch', 'xhr']` | Breadcrumb categories to apply URL-pattern filtering to. |
 | `ignoredBreadcrumbPatterns` | `RegExp[]` | Pyroscope + PostHog patterns | URL patterns for breadcrumbs that should be dropped entirely. |
+| `ignoredSpanOps` | `string[]` | `[]` | Span ops dropped before sending to Sentry (e.g. `['middleware.express', 'router.express']`). Children are re-parented; OTLP export is unaffected. |
 
 ## API
 
