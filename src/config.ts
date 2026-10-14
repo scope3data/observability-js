@@ -81,6 +81,10 @@ export function resolveConfig(config: ObservabilityConfig): ResolvedConfig {
         /posthog\.com/i,
         /i\.posthog\.com/i,
       ],
+      ignoredSpanOps: config.filters?.ignoredSpanOps ?? [
+        'middleware.express',
+        'router.express',
+      ],
     },
 
     shouldDropError: config.shouldDropError,

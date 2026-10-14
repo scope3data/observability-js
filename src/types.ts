@@ -89,6 +89,12 @@ export interface FilterConfig {
    * Defaults to patterns matching Pyroscope and PostHog URLs.
    */
   ignoredBreadcrumbPatterns?: RegExp[]
+  /**
+   * Sentry span ops dropped before spans are sent to Sentry. Children of a
+   * dropped span are re-parented, and OTLP export is unaffected.
+   * Defaults to `['middleware.express', 'router.express']`. Pass `[]` to keep them.
+   */
+  ignoredSpanOps?: string[]
 }
 
 /** Top-level configuration passed to {@link init}. */
@@ -177,6 +183,7 @@ export interface ResolvedConfig {
     ignoredRoutes: string[]
     ignoredBreadcrumbCategories: string[]
     ignoredBreadcrumbPatterns: RegExp[]
+    ignoredSpanOps: string[]
   }
 
   shouldDropError?: (error: unknown) => boolean

@@ -172,3 +172,14 @@ describe('trace provider registration on the Sentry client', () => {
     }
   }, 2000)
 })
+
+describe('Sentry span filtering', () => {
+  it('drops Express middleware and router spans by default', () => {
+    initWithOtel()
+
+    expect(Sentry.getClient()?.getOptions().ignoreSpans).toEqual([
+      { op: 'middleware.express' },
+      { op: 'router.express' },
+    ])
+  })
+})

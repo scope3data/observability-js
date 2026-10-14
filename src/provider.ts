@@ -109,6 +109,7 @@ function initializeSentry(config: ResolvedConfig): void {
     ],
     enabled: config.sentry.enabled,
     tracesSampler: buildTracesSampler(config),
+    ignoreSpans: config.filters.ignoredSpanOps.map((op) => ({ op })),
     beforeSend(event, hint) {
       const error = hint?.originalException
 
