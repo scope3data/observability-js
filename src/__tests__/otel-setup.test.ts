@@ -174,12 +174,24 @@ describe('trace provider registration on the Sentry client', () => {
 })
 
 describe('Sentry span filtering', () => {
-  it('drops Express middleware and router spans by default', () => {
-    initWithOtel()
+  it('passes ignoredSpanOps to Sentry as ignoreSpans', () => {
+    init({
+      serviceName: 'otel-setup-test',
+      environment: 'development',
+      enableOtel: true,
+      sentry: { dsn: SENTRY_DSN, enabled: false },
+      filters: { ignoredSpanOps: ['middleware.express', 'router.express'] },
+    })
 
     expect(Sentry.getClient()?.getOptions().ignoreSpans).toEqual([
       { op: 'middleware.express' },
       { op: 'router.express' },
     ])
+  })
+
+  it('ignores no spans by default', () => {
+    initWithOtel()
+
+    expect(Sentry.getClient()?.getOptions().ignoreSpans).toEqual([])
   })
 })

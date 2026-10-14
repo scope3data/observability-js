@@ -92,7 +92,7 @@ export interface FilterConfig {
   /**
    * Sentry span ops dropped before spans are sent to Sentry. Children of a
    * dropped span are re-parented, and OTLP export is unaffected.
-   * Defaults to `['middleware.express', 'router.express']`. Pass `[]` to keep them.
+   * Example: `['middleware.express', 'router.express']`. Defaults to `[]`.
    */
   ignoredSpanOps?: string[]
 }
