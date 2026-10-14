@@ -1,6 +1,6 @@
 {
   "name": "@scope3/observability-js",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "Unified observability (Sentry, OpenTelemetry, Pyroscope) for Node.js services",
   "keywords": [
     "observability",
@@ -49,14 +49,14 @@
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.0",
-    "@opentelemetry/exporter-trace-otlp-http": "^0.221.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.223.0",
     "@opentelemetry/resources": "^2.6.1",
     "@opentelemetry/sdk-trace-node": "^2.6.1",
     "@opentelemetry/semantic-conventions": "^1.40.0",
-    "@pyroscope/nodejs": "^0.4.8",
-    "@sentry/node": "10.69.0",
-    "@sentry/opentelemetry": "10.69.0",
-    "@sentry/profiling-node": "10.69.0",
+    "@pyroscope/nodejs": "^0.6.5",
+    "@sentry/node": "10.76.2",
+    "@sentry/opentelemetry": "10.76.2",
+    "@sentry/profiling-node": "10.76.2",
     "jose": "^6.1.0"
   },
   "devDependencies": {
@@ -64,10 +64,10 @@
     "@opentelemetry/context-async-hooks": "^2.6.1",
     "@types/node": "^20.0.0",
     "husky": "^9.1.7",
-    "lint-staged": "^16.3.3",
+    "lint-staged": "^17.6.0",
     "semver": "^7.7.4",
     "tsup": "^8.0.0",
-    "typescript": "^5.5.0",
+    "typescript": "^6.0.2",
     "vitest": "^4.0.18"
   },
   "engines": {
