@@ -4,7 +4,10 @@ import type * as Sentry from '@sentry/node'
 type SamplingContext = Parameters<
   NonNullable<Sentry.NodeOptions['tracesSampler']>
 >[0]
-type SentryIntegration = ReturnType<typeof Sentry.expressIntegration>
+type SentryIntegration = Extract<
+  NonNullable<Sentry.NodeOptions['integrations']>,
+  unknown[]
+>[number]
 
 /** Sentry error monitoring and profiling configuration. */
 export interface SentryConfig {
