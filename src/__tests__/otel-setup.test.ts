@@ -4,6 +4,7 @@ import * as Sentry from '@sentry/node'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { init, resetForTesting } from '../provider'
+import type { ObservabilityConfig } from '../types'
 
 const SENTRY_DSN = 'https://examplePublicKey@o0.ingest.sentry.io/0'
 
@@ -193,5 +194,16 @@ describe('Sentry span filtering', () => {
     initWithOtel()
 
     expect(Sentry.getClient()?.getOptions().ignoreSpans).toEqual([])
+  })
+})
+
+describe('Sentry integrations config', () => {
+  it('accepts integrations other than Express', () => {
+    const config: ObservabilityConfig = {
+      serviceName: 'otel-setup-test',
+      sentry: { integrations: [Sentry.httpIntegration()] },
+    }
+
+    expect(config.sentry?.integrations?.[0]?.name).toBe('Http')
   })
 })
