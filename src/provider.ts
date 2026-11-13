@@ -154,6 +154,7 @@ function initializeSentry(config: ResolvedConfig): void {
     profileSessionSampleRate: config.sentry.profileSampleRate,
     profileLifecycle: 'trace',
     sendDefaultPii: true,
+    dataCollection: config.sentry.dataCollection,
     skipOpenTelemetrySetup: config.enableOtel,
   })
 }
