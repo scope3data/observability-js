@@ -42,6 +42,8 @@ export interface SentryConfig {
    * (expressIntegration, nodeProfilingIntegration).
    */
   integrations?: SentryIntegration[]
+  /** Sentry data collection controls, passed through unchanged to the SDK. */
+  dataCollection?: Sentry.NodeOptions['dataCollection']
 }
 
 /** Pyroscope continuous profiling configuration. */
@@ -164,6 +166,7 @@ export interface ResolvedConfig {
     profileSampleRate: number
     tracesSampler?: (context: SamplingContext) => number | undefined
     integrations: SentryIntegration[]
+    dataCollection?: Sentry.NodeOptions['dataCollection']
   }
 
   pyroscope: {

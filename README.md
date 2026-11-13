@@ -72,6 +72,22 @@ All options are passed to `init()` as an `ObservabilityConfig` object.
 | `enabled` | `boolean` | auto | Override automatic enable/disable logic. By default Sentry is enabled when a DSN is present and the environment is `production` or `staging`. |
 | `sampleRate` | `number` | `0.25` (prod), `1.0` (other) | Fraction of transactions sent to Sentry, between 0 and 1. |
 | `profileSampleRate` | `number` | `sampleRate` | Fraction of sampled transactions to profile, between 0 and 1. |
+| `dataCollection` | `Sentry.NodeOptions['dataCollection']` | omitted | Data collection controls passed to Sentry unchanged, including HTTP request and response header controls. |
+
+For example, to restrict automatic capture of a request header:
+
+```ts
+init({
+  serviceName: 'my-service',
+  sentry: {
+    dataCollection: {
+      httpHeaders: { request: { deny: ['x-scope3-origin-ref'] } },
+    },
+  },
+})
+```
+
+Omitting `dataCollection` preserves the existing Sentry configuration. When supplied, the SDK gives it precedence over `sendDefaultPii` and applies its own defaults to unspecified categories. Header controls govern the SDK's automatic collection; they do not filter attributes added manually to spans or data captured by other instrumentation.
 
 ### `PyroscopeConfig`
 
@@ -308,7 +324,7 @@ npm test
 
 ### Releasing
 
-Releases are automated. When a pull request is merged to `main` with a bumped version in `package.json`, the release workflow will:
+After a pull request with a bumped version in `package.json` is merged to `main`, run the release workflow manually. It will:
 
 1. Compare the new version against the latest git tag using semver
 2. If the version is greater, create a git tag, a GitHub Release, and publish to npm

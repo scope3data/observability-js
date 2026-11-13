@@ -54,6 +54,7 @@ export function resolveConfig(config: ObservabilityConfig): ResolvedConfig {
           }
         : undefined,
       integrations: config.sentry?.integrations ?? [],
+      dataCollection: config.sentry?.dataCollection,
     },
 
     pyroscope: {
